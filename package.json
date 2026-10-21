@@ -1,0 +1,55 @@
+{
+  "name": "flamez",
+  "version": "1.0.0",
+  "description": "FLAMEZ CHECKER: see what is turned on and off on your PC",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis --publish never",
+    "icon": "electron tools/make-icon.js"
+  },
+  "type": "commonjs",
+  "productName": "FLAMEZ CHECKER",
+  "build": {
+    "appId": "com.acuz3d.flamez",
+    "productName": "FLAMEZ CHECKER",
+    "directories": {
+      "output": "dist"
+    },
+    "npmRebuild": false,
+    "files": [
+      "**/*",
+      "!dist/**",
+      "!*.lnk",
+      "!README.md",
+      "!tools/**",
+      "!art/**",
+      "!docs/**"
+    ],
+    "asarUnpack": [
+      "checker.ps1"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "FLAMEZ CHECKER",
+      "artifactName": "FLAMEZ-CHECKER-Setup-${version}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.7.2",
+    "electron-builder": "^26.15.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Acuz3D/flamez-checker.git"
+  },
+  "homepage": "https://github.com/Acuz3D/flamez-checker"
+}

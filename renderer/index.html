@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'" />
+    <title>FLAMEZ CHECKER</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="backdrop">
+      <div class="grid"></div>
+      <div class="glow"></div>
+      <div class="stage"><div class="spinner" id="spinner"></div></div>
+      <div class="floor"></div>
+    </div>
+
+    <header id="toolbar">
+      <img class="brand-icon" src="logo.png" alt="" />
+      <span class="brand chrome">FLAMEZ</span>
+      <span class="brand-sub">CHECKER</span>
+      <span class="sep"></span>
+
+      <nav id="tabs">
+        <button class="tab active" data-page="overview">Overview</button>
+        <button class="tab" data-page="drivers">Drivers</button>
+        <button class="tab" data-page="services">Services</button>
+        <button class="tab" data-page="startup">Start-up</button>
+      </nav>
+
+      <span id="status"></span>
+
+      <div id="bar-right">
+        <button id="refresh-btn" title="Check again"><i data-icon="refresh"></i>Refresh</button>
+        <button class="icon-btn" id="copy-btn" title="Copy a report to paste somewhere"><i data-icon="copy"></i></button>
+        <button class="icon-btn" id="save-btn" title="Save a report as a text file"><i data-icon="save"></i></button>
+      </div>
+
+      <div id="win-btns">
+        <button id="win-min" title="Minimise"><i data-icon="winMin"></i></button>
+        <button id="win-max" title="Maximise"><i data-icon="winMax"></i></button>
+        <button id="win-close" title="Close"><i data-icon="winClose"></i></button>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- first check -->
+      <section id="loading" class="glass">
+        <span class="dot"></span>
+        <h1>Checking your PC</h1>
+        <p>Reading what's turned on and off. This takes a few seconds.</p>
+      </section>
+
+      <section id="failed" class="glass" hidden>
+        <h1>The check didn't finish</h1>
+        <p id="failed-text"></p>
+        <button class="primary" id="retry-btn"><i data-icon="refresh"></i>Try again</button>
+      </section>
+
+      <!-- overview -->
+      <div id="page-overview" class="page" hidden>
+        <section id="summary" class="glass"></section>
+        <div id="cards"></div>
+      </div>
+
+      <!-- services and drivers -->
+      <div id="page-services" class="page" hidden>
+        <section class="glass list-page">
+          <div class="list-head">
+            <div>
+              <span class="eyebrow" id="svc-kind-label">Services</span>
+              <p class="counts" id="svc-counts"></p>
+            </div>
+            <div class="seg" id="svc-kind">
+              <button class="chip active" data-v="services">Services</button>
+              <button class="chip" data-v="drivers">Drivers</button>
+            </div>
+            <button id="svc-open"><i data-icon="external"></i>Open Services</button>
+          </div>
+          <div class="filters">
+            <label class="search"><i data-icon="search"></i><input type="text" id="svc-search" placeholder="Search by name…" spellcheck="false" /></label>
+            <div class="seg" id="svc-state">
+              <button class="chip active" data-v="all">All</button>
+              <button class="chip" data-v="Running">Running</button>
+              <button class="chip" data-v="Stopped">Stopped</button>
+            </div>
+            <span class="filter-label">Start-up</span>
+            <div class="seg" id="svc-mode">
+              <button class="chip active" data-v="all">All</button>
+              <button class="chip" data-v="Auto">Automatic</button>
+              <button class="chip" data-v="Manual">Manual</button>
+              <button class="chip" data-v="Disabled">Disabled</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="svc-table">
+              <thead>
+                <tr>
+                  <th data-sort="d">Name</th>
+                  <th data-sort="n">Service</th>
+                  <th data-sort="s">Status</th>
+                  <th data-sort="m">Start-up</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- start-up apps -->
+      <div id="page-startup" class="page" hidden>
+        <section class="glass list-page">
+          <div class="list-head">
+            <div>
+              <span class="eyebrow">Start-up apps</span>
+              <p class="counts" id="startup-counts"></p>
+            </div>
+            <button id="startup-open"><i data-icon="external"></i>Change in Settings</button>
+          </div>
+          <div id="startup-list"></div>
+        </section>
+      </div>
+
+      <!-- drivers: graphics, chipset, BIOS and the rest -->
+      <div id="page-drivers" class="page" hidden>
+        <div id="driver-cards"></div>
+      </div>
+    </main>
+
+    <div id="toast"></div>
+
+    <script src="catalog.js"></script>
+    <script src="renderer.js"></script>
+  </body>
+</html>
