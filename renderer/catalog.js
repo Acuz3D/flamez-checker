@@ -74,6 +74,35 @@ window.CATALOG = {
     { name: 'HxD', app: /^HxD/i, proc: ['HxD', 'HxD64'] },
   ],
 
+  // every Windows release, newest first, from Microsoft's release information pages
+  // (learn.microsoft.com/windows/release-health). end = last update for Home and Pro,
+  // entEnd = for Enterprise and Education. Add new ones at the top.
+  windows11: [
+    { v: '26H2', build: 26300, out: '2026-09-29', end: '2028-10-10', entEnd: '2029-10-09' },
+    { v: '26H1', build: 28000, out: '2026-02-10', end: '2028-03-14', entEnd: '2029-03-13', newPcs: true },
+    { v: '25H2', build: 26200, out: '2025-09-30', end: '2027-10-12', entEnd: '2028-10-10' },
+    { v: '24H2', build: 26100, out: '2024-10-01', end: '2026-10-13', entEnd: '2027-10-12' },
+    { v: '23H2', build: 22631, out: '2023-10-31', end: '2025-11-11', entEnd: '2026-11-10' },
+    { v: '22H2', build: 22621, out: '2022-09-20', end: '2024-10-08', entEnd: '2025-10-14' },
+    { v: '21H2', build: 22000, out: '2021-10-04', end: '2023-10-10', entEnd: '2024-10-08' },
+  ],
+  windows10: [
+    { v: '22H2', build: 19045, out: '2022-10-18', end: '2025-10-14' },
+    { v: '21H2', build: 19044, out: '2021-11-16', end: '2023-06-13' },
+    { v: '21H1', build: 19043, out: '2021-05-18', end: '2022-12-13' },
+    { v: '20H2', build: 19042, out: '2020-10-20', end: '2022-05-10' },
+    { v: '2004', build: 19041, out: '2020-05-27', end: '2021-12-14' },
+    { v: '1909', build: 18363, out: '2019-11-12', end: '2021-05-11' },
+    { v: '1903', build: 18362, out: '2019-05-21', end: '2020-12-08' },
+    { v: '1809', build: 17763, out: '2018-11-13', end: '2020-11-10' },
+    { v: '1803', build: 17134, out: '2018-04-30', end: '2019-11-12' },
+    { v: '1709', build: 16299, out: '2017-10-17', end: '2019-04-09' },
+    { v: '1703', build: 15063, out: '2017-04-05', end: '2018-10-09' },
+    { v: '1607', build: 14393, out: '2016-08-02', end: '2018-04-10' },
+    { v: '1511', build: 10586, out: '2015-11-10', end: '2017-10-10' },
+    { v: '1507', build: 10240, out: '2015-07-29', end: '2017-05-09' },
+  ],
+
   // network adapters that are a VPN or virtual network
   vpn: /WireGuard|WARP|Cloudflare|TAP-Windows|OpenVPN|Tailscale|NordLynx|Proton|Mullvad|ZeroTier|Hamachi|Radmin|ExpressVPN|Surfshark/i,
 };

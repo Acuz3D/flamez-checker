@@ -246,6 +246,39 @@ ipcMain.handle('report:save', async (_e, text) => {
   return filePath;
 });
 
+// ---------- choosing a Windows version ----------
+// Windows' own "target release version" setting: Windows Update moves to that
+// version (if it's newer) and stays on it. null removes it. Needs admin, so it
+// runs in a PowerShell that asks for it.
+
+const WU_POLICY = 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate';
+
+ipcMain.handle('windows:target', (_e, target) => {
+  let script;
+  if (target) {
+    const { product, version } = target;
+    if (!['Windows 11', 'Windows 10'].includes(product) || !/^\d{2}H[12]$/.test(version)) return { ok: false, error: 'Not a Windows version.' };
+    script = [
+      `$k = '${WU_POLICY}'`,
+      'if (-not (Test-Path $k)) { New-Item -Path $k -Force | Out-Null }',
+      "New-ItemProperty -Path $k -Name TargetReleaseVersion -Value 1 -PropertyType DWord -Force | Out-Null",
+      `New-ItemProperty -Path $k -Name ProductVersion -Value '${product}' -PropertyType String -Force | Out-Null`,
+      `New-ItemProperty -Path $k -Name TargetReleaseVersionInfo -Value '${version}' -PropertyType String -Force | Out-Null`,
+    ].join('; ');
+  } else {
+    script = `Remove-ItemProperty -Path '${WU_POLICY}' -Name TargetReleaseVersion, ProductVersion, TargetReleaseVersionInfo -ErrorAction SilentlyContinue`;
+  }
+  const encoded = Buffer.from(script, 'utf16le').toString('base64');
+  return new Promise((resolve) => {
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', `$p = Start-Process powershell.exe -Verb RunAs -WindowStyle Hidden -Wait -PassThru -ArgumentList '-NoProfile', '-EncodedCommand', '${encoded}'; exit $p.ExitCode`],
+      { windowsHide: true, timeout: 120000 },
+      (err, _out, stderr) => resolve(err ? { ok: false, error: /cancel/i.test(stderr) ? 'Cancelled.' : "Couldn't change it (it needs admin)." } : { ok: true }),
+    );
+  });
+});
+
 // ---------- updates ----------
 // New versions come from the GitHub releases. They download in the background;
 // the page offers a restart, and otherwise it installs when the app closes.

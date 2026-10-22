@@ -1,6 +1,6 @@
 {
   "name": "flamez",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "FLAMEZ CHECKER: see what is turned on and off on your PC",
   "main": "main.js",
   "scripts": {

@@ -36,7 +36,8 @@
 - Your edition, version, build and whether Windows is activated
 - **Change edition**: upgrade Home to Pro with a key, or open Activation
 - **Change version**: Windows Update, go back to the previous version (while Windows still keeps it), or join the Insider Program
-- **Install a different Windows**: Windows 11 or 10 straight from Microsoft, and whether this PC is ready for Windows 11
+- **Every Windows version**: all of Windows 11 (21H2 to 26H2) and Windows 10 (1507 to 22H2) with their build, release date and how long they get updates. **Get it** moves this PC up to a newer version with Windows Update and keeps it there; **Stay on this** holds your current one; **Remove lock** puts updates back to normal
+- **Install Windows 11 or 10** straight from Microsoft, and see whether this PC is ready for Windows 11
 
 ## Anti-cheats
 

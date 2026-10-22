@@ -840,12 +840,13 @@ function windowsCards(d) {
   // the version it updated from, if Windows still has it
   const prevAge = s.previous ? (Date.now() - new Date(s.previous)) / 86400000 : null;
   const daysLeft = prevAge == null ? 0 : Math.floor(GO_BACK_DAYS - prevAge);
+  const next = s.target ? null : nextVersion(d); // once locked, the list below shows where it's going
   const version = card(
     'Change version',
     `<div class="releases">
       <div class="release">
-        <b>Newer</b><span class="r-meta">the latest ${win11 ? 'Windows 11' : 'Windows'} update</span>
-        <span class="r-btns"><button class="dl primary" data-place="update"><i data-icon="refresh"></i>Windows Update</button></span>
+        <b>Newer</b><span class="r-meta">${next ? `Windows 11 ${esc(next.v)} is out` : `the latest ${win11 ? 'Windows 11' : 'Windows'} update`}</span>
+        <span class="r-btns">${next ? targetBtn('Windows 11', next.v, `Get ${next.v}`, 'primary') : '<button class="dl primary" data-place="update"><i data-icon="refresh"></i>Windows Update</button>'}</span>
       </div>
       <div class="release current">
         <b>${esc(s.release || 'Now')}</b><span class="tag on">Installed</span><span class="r-meta">build ${esc(s.build)}</span>
@@ -865,31 +866,95 @@ function windowsCards(d) {
     { cls: 'half' },
   );
 
-  const install = card(
-    'Install a different Windows',
-    `<div class="releases">
-      <div class="release ${win11 ? 'current' : ''}">
-        <b>Windows 11</b>${win11 ? '<span class="tag on">Installed</span>' : '<span class="tag">Latest</span>'}
-        <span class="r-meta">${win11 ? 'reinstall or make a USB' : 'upgrade in place, keeps your files and apps'}</span>
-        <span class="r-btns">${linkBtn('https://www.microsoft.com/software-download/windows11', 'Download from Microsoft', 'primary')}</span>
-      </div>
-      <div class="release ${win11 ? '' : 'current'}">
-        <b>Windows 10</b>${win11 ? '' : '<span class="tag on">Installed</span>'}
-        <span class="r-meta">22H2, the last one · no more security updates</span>
-        <span class="r-btns">${linkBtn('https://www.microsoft.com/software-download/windows10', 'Download from Microsoft')}</span>
-      </div>
-    </div>
-    <p class="note">Microsoft's page has the Installation Assistant (upgrades this PC), the Media Creation Tool (makes an install USB) and the ISO. Going from Windows 11 back to 10 is a clean install, so back up your files first. Your licence carries over: the same edition activates on either.</p>`,
-    { cls: 'full' },
-  );
+  return `${yours}${ready}${edition}${version}${versionsCard(d, current)}`;
+}
 
-  return `${yours}${ready}${edition}${version}${install}`;
+// ---------- every Windows 11 and 10 version ----------
+
+const winView = { older: false }; // also show the old Windows 10 versions
+const isoDay = (s) => day(`${s}T12:00`); // catalog dates are YYYY-MM-DD
+const targetBtn = (product, v, label, cls = '') => `<button class="dl ${cls}" data-target="${esc(`${product}|${v}`)}">${esc(label)}</button>`;
+
+// the newest Windows 11 this PC can move up to with Windows Update
+function nextVersion(d) {
+  const build = parseInt(d.system.build, 10) || 0;
+  const today = new Date().toISOString().slice(0, 10);
+  const win11 = /Windows 11/i.test(d.system.os);
+  return CATALOG.windows11.find((r) => !r.newPcs && r.end >= today && (!win11 || r.build > build));
+}
+
+function versionsCard(d, edition) {
+  const s = d.system;
+  const build = parseInt(s.build, 10) || 0;
+  const win11 = /Windows 11/i.test(s.os);
+  const ent = edition?.rank >= 2; // Education and Enterprise get a year longer
+  const today = new Date().toISOString().slice(0, 10);
+  const lock = s.target;
+
+  const row = (product, r) => {
+    const mine = build === r.build;
+    const endDate = ent && r.entEnd ? r.entEnd : r.end;
+    const supported = endDate >= today;
+    const locked = lock?.product === product && lock?.version === r.v;
+    // Windows Update only goes up: any Windows 11 from 10, or a later build of the same one
+    const newer = !mine && (product === 'Windows 11' ? !win11 || r.build > build : !win11 && r.build > build);
+    let how;
+    let btn = '';
+    if (mine) {
+      how = locked ? 'Windows Update stays on this' : 'this PC';
+      if (!locked && supported) btn = targetBtn(product, r.v, 'Stay on this');
+    } else if (r.newPcs) how = 'only comes on new PCs, not as an update';
+    else if (newer && supported) {
+      how = 'move up with Windows Update';
+      if (!locked) btn = targetBtn(product, r.v, 'Get it', 'primary');
+    } else if (!supported) how = 'no more updates';
+    else how = 'older, so clean install only';
+    const tags = [mine ? '<span class="tag on">Installed</span>' : '', locked ? '<span class="tag on">Locked</span>' : '', !supported ? '<span class="tag">Ended</span>' : ''].join('');
+    return `<div class="release ${mine ? 'current' : ''}">
+      <b>${esc(r.v)}</b>${tags}
+      <span class="r-meta">${esc(how)} · build ${r.build} · out ${isoDay(r.out)} · updates ${supported ? 'until' : 'ended'} ${isoDay(endDate)}</span>
+      <span class="r-btns">${btn}</span>
+    </div>`;
+  };
+
+  const win10 = winView.older ? CATALOG.windows10 : CATALOG.windows10.slice(0, 1);
+  const olderCount = CATALOG.windows10.length - 1;
+  return card(
+    'Every Windows version',
+    `<div class="sub">Windows 11</div>
+    <div class="releases">${CATALOG.windows11.map((r) => row('Windows 11', r)).join('')}</div>
+    <div class="r-btns left">${linkBtn('https://www.microsoft.com/software-download/windows11', 'Download the newest Windows 11 from Microsoft')}</div>
+    <div class="sub" style="margin-top:16px">Windows 10</div>
+    <div class="releases">${win10.map((r) => row('Windows 10', r)).join('')}</div>
+    <button class="more" data-act="win10-older">${winView.older ? 'Only show the last one' : `Show ${olderCount} older Windows 10 versions`}</button>
+    <div class="r-btns left">${linkBtn('https://www.microsoft.com/software-download/windows10', 'Download Windows 10 22H2 from Microsoft')}${lock ? '<button class="dl" data-target=""><i data-icon="refresh"></i>Remove lock</button>' : ''}</div>
+    <p class="note"><b>Get it</b> tells Windows Update to move to that version and stay on it (Windows' own Target Release Version setting, needs admin), then opens Windows Update. <b>Remove lock</b> puts updates back to normal. Going down to an older version, or from 11 to 10, is a clean install, so back up first. Microsoft only offers the newest of each to download.</p>`,
+    { cls: 'full', meta: lock ? `locked to ${lock.product} ${lock.version}` : `${CATALOG.windows11.length + CATALOG.windows10.length} versions`, metaLit: !!lock },
+  );
 }
 
 function drawWindows() {
   $('#windows-cards').innerHTML = windowsCards(data);
   drawIcons($('#windows-cards'));
 }
+
+$('#windows-cards').addEventListener('click', async (e) => {
+  if (e.target.closest('[data-act="win10-older"]')) {
+    winView.older = !winView.older;
+    drawWindows();
+  }
+  const t = e.target.closest('[data-target]');
+  if (!t) return;
+  const [product, version] = t.dataset.target.split('|');
+  const r = await flamez.setWindowsTarget(version ? { product, version } : null);
+  if (!r.ok) return toast(r.error);
+  // 22H2 and 21H2 are names in both lists, so look in the right one
+  const list = product === 'Windows 11' ? CATALOG.windows11 : CATALOG.windows10;
+  const moving = version && list.find((x) => x.v === version)?.build !== parseInt(data.system.build, 10);
+  toast(!version ? 'Lock removed. Updates are back to normal.' : moving ? `Windows Update will move to ${product} ${version}.` : `Windows Update will stay on ${version}.`);
+  if (moving) flamez.open('update');
+  check();
+});
 
 // ---------- the report ----------
 

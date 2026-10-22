@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('flamez', {
   openLink: (url) => ipcRenderer.invoke('link:open', url),
   driversOnline: (gpuNames) => ipcRenderer.invoke('drivers:online', gpuNames),
   uninstall: (appName) => ipcRenderer.invoke('app:uninstall', appName),
+  setWindowsTarget: (target) => ipcRenderer.invoke('windows:target', target),
   copyReport: (text) => ipcRenderer.invoke('report:copy', text),
   saveReport: (text) => ipcRenderer.invoke('report:save', text),
   about: () => ipcRenderer.invoke('app:about'),

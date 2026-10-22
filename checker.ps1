@@ -29,6 +29,7 @@ $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIden
 $lic = Get-CimInstance SoftwareLicensingProduct -Filter "ApplicationID='55c92734-d682-4d71-983e-d6ec3f16059f' AND PartialProductKey IS NOT NULL" | Select-Object -First 1
 # Windows keeps the version it updated from here for a few days, so you can go back
 $old = Get-Item -LiteralPath "$env:SystemDrive\Windows.old" -Force
+$wuPolicy = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
 
 $system = [ordered]@{
   os        = ($os.Caption -replace '^Microsoft ', '')
@@ -39,6 +40,8 @@ $system = [ordered]@{
   licence   = $(if ($lic) { "$($lic.ProductKeyChannel)" } else { $null })
   previous  = $(if ($old) { Iso $old.CreationTime } else { $null })
   drive     = $env:SystemDrive.TrimEnd(':')
+  # set when Windows Update is told to move to, or stay on, one version
+  target    = $(if ((Reg $wuPolicy 'TargetReleaseVersion') -eq 1) { [ordered]@{ product = Reg $wuPolicy 'ProductVersion'; version = Reg $wuPolicy 'TargetReleaseVersionInfo' } } else { $null })
   installed = Iso $os.InstallDate
   booted    = Iso $os.LastBootUpTime
   arch      = $os.OSArchitecture
