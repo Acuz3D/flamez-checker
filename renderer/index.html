@@ -22,6 +22,7 @@
 
       <nav id="tabs">
         <button class="tab active" data-page="overview">Overview</button>
+        <button class="tab" data-page="windows">Windows</button>
         <button class="tab" data-page="drivers">Drivers</button>
         <button class="tab" data-page="services">Services</button>
         <button class="tab" data-page="startup">Start-up</button>
@@ -30,6 +31,7 @@
       <span id="status"></span>
 
       <div id="bar-right">
+        <button class="primary" id="update-btn" title="A new version is downloaded. Restart FLAMEZ CHECKER to install it." hidden><i data-icon="save"></i>Restart to update</button>
         <button id="refresh-btn" title="Check again"><i data-icon="refresh"></i>Refresh</button>
         <button class="icon-btn" id="copy-btn" title="Copy a report to paste somewhere"><i data-icon="copy"></i></button>
         <button class="icon-btn" id="save-btn" title="Save a report as a text file"><i data-icon="save"></i></button>
@@ -119,6 +121,11 @@
           </div>
           <div id="startup-list"></div>
         </section>
+      </div>
+
+      <!-- Windows: edition, version, and how to change them -->
+      <div id="page-windows" class="page" hidden>
+        <div id="windows-cards"></div>
       </div>
 
       <!-- drivers: graphics, chipset, BIOS and the rest -->

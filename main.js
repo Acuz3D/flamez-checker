@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell, screen, clipboard, net } = r
 const path = require('path');
 const fs = require('fs');
 const { execFile, spawn } = require('child_process');
+const { autoUpdater } = require('electron-updater');
 
 // keep the saved last check in the same place it was before the app was renamed FLAMEZ CHECKER
 app.setPath('userData', path.join(app.getPath('appData'), 'FLAMEZ'));
@@ -49,7 +50,49 @@ function monitors() {
 // drivers part fails, the rest still shows
 ipcMain.handle('check:run', async () => {
   const [a, b, c] = await Promise.all([runPart('a'), runPart('b'), runPart('c').catch((e) => ({ driversError: e.message }))]);
+  uninstallers = new Map((b.apps || []).filter((x) => x.u).map((x) => [x.n, x.u]));
   return { ...c, ...b, ...a, monitors: monitors() };
+});
+
+// ---------- uninstalling ----------
+// The page only sends an app's name; the command comes from what the last
+// check read from Windows' list of installed apps.
+
+let uninstallers = new Map();
+
+// '"C:\x\unins000.exe" /x' or 'C:\x y\uninst.exe' → the program and what to pass it
+function splitCommand(cmd) {
+  const m = cmd.match(/^"([^"]+)"\s*(.*)$/) || cmd.match(/^(.+?\.exe)(?:\s+(.*))?$/i);
+  if (!m) return null;
+  let [, file, args = ''] = m;
+  // MsiExec /I opens the repair screen; /X removes
+  if (/msiexec(\.exe)?$/i.test(file)) args = args.replace(/\/I\s*(\{[^}]+\})/i, '/X$1');
+  return { file, args: args.trim() };
+}
+
+ipcMain.handle('app:uninstall', async (_e, name) => {
+  const cmd = splitCommand(uninstallers.get(name) || '');
+  if (!cmd) return { ok: false, error: `Windows doesn't list an uninstaller for ${name}.` };
+  const { response } = await dialog.showMessageBox(win, {
+    type: 'warning',
+    title: 'Uninstall',
+    message: `Uninstall ${name}?`,
+    detail: "This opens its own uninstaller. Games that use it won't start until it's installed again; most put it back when you next launch the game.",
+    buttons: ['Uninstall', 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+  });
+  if (response !== 0) return { ok: false };
+  // Start-Process goes through the shell, so uninstallers that need admin get the Windows prompt
+  return new Promise((resolve) => {
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', '$a = @{ FilePath = $env:FZ_FILE }; if ($env:FZ_ARGS) { $a.ArgumentList = $env:FZ_ARGS }; Start-Process @a -ErrorAction Stop'],
+      { windowsHide: true, timeout: 60000, env: { ...process.env, FZ_FILE: cmd.file, FZ_ARGS: cmd.args } },
+      (err, _out, stderr) => resolve(err ? { ok: false, error: /cancel/i.test(stderr) ? 'Cancelled.' : `Couldn't start the uninstaller (${String(stderr || err.message).trim().split('\n')[0]}).` } : { ok: true }),
+    );
+  });
 });
 
 // ---------- driver releases online ----------
@@ -168,6 +211,10 @@ const PLACES = {
   deviceManager: { open: sys32('devmgmt.msc') },
   sysinfo: { open: sys32('msinfo32.exe') },
   update: 'ms-settings:windowsupdate',
+  activation: 'ms-settings:activation',
+  productKey: { open: sys32('changepk.exe') },
+  recovery: 'ms-settings:recovery',
+  insider: 'ms-settings:windowsinsider',
 };
 
 ipcMain.handle('place:open', async (_e, key) => {
@@ -198,6 +245,26 @@ ipcMain.handle('report:save', async (_e, text) => {
   shell.showItemInFolder(filePath);
   return filePath;
 });
+
+// ---------- updates ----------
+// New versions come from the GitHub releases. They download in the background;
+// the page offers a restart, and otherwise it installs when the app closes.
+
+const UPDATE_EVERY = 6 * 60 * 60 * 1000;
+
+function startUpdates() {
+  if (!app.isPackaged) return; // npm start has nothing to update
+  const send = (state, info = {}) => win?.webContents.send('update', { state, version: info.version, percent: info.percent });
+  autoUpdater.on('update-available', (info) => send('downloading', info));
+  autoUpdater.on('download-progress', (p) => send('downloading', { percent: Math.round(p.percent) }));
+  autoUpdater.on('update-downloaded', (info) => send('ready', info));
+  autoUpdater.on('error', () => send('none')); // offline or GitHub down: try again next time
+  const check = () => autoUpdater.checkForUpdates().catch(() => {});
+  check();
+  setInterval(check, UPDATE_EVERY);
+}
+
+ipcMain.on('update:install', () => autoUpdater.quitAndInstall(true, true));
 
 // ---------- window ----------
 
@@ -235,5 +302,8 @@ app.on('second-instance', () => {
   win.focus();
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  win.webContents.once('did-finish-load', startUpdates);
+});
 app.on('window-all-closed', () => app.quit());

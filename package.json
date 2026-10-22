@@ -1,6 +1,6 @@
 {
   "name": "flamez",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "FLAMEZ CHECKER: see what is turned on and off on your PC",
   "main": "main.js",
   "scripts": {
@@ -41,7 +41,14 @@
       "createStartMenuShortcut": true,
       "shortcutName": "FLAMEZ CHECKER",
       "artifactName": "FLAMEZ-CHECKER-Setup-${version}.${ext}"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Acuz3D",
+        "repo": "flamez-checker"
+      }
+    ]
   },
   "devDependencies": {
     "electron": "^44.7.2",
@@ -51,5 +58,8 @@
     "type": "git",
     "url": "https://github.com/Acuz3D/flamez-checker.git"
   },
-  "homepage": "https://github.com/Acuz3D/flamez-checker"
+  "homepage": "https://github.com/Acuz3D/flamez-checker",
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
 }

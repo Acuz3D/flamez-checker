@@ -664,7 +664,8 @@ body.busy .list-page {
 /* ---------- cards ---------- */
 
 #cards,
-#driver-cards {
+#driver-cards,
+#windows-cards {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 14px;
@@ -1505,4 +1506,15 @@ button.more {
 td.r-cell {
   text-align: right;
   width: 1%;
+}
+
+/* Uninstall / Apps button at the end of an anti-cheat row */
+.find button.dl {
+  padding: 2px 9px;
+  font-size: 11px;
+}
+
+.badge:not(.ok):not(.hot) {
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
 }

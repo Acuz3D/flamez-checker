@@ -11,6 +11,7 @@ window.CATALOG = {
     { name: 'FACEIT', svc: /^FACEIT/i, app: /^FACEIT/i },
     { name: 'ESEA', svc: /^ESEADriver/i, app: /^ESEA/i },
     { name: 'EA Javelin', svc: /^EAAntiCheat/i, app: /^EA ?Anti-?Cheat/i },
+    { name: 'Ubisoft Anti-Cheat', svc: /^sen_(service|driver)$/i, app: /^Ubisoft Anti-?Cheat/i },
     { name: 'PunkBuster', svc: /^PnkBstr/i, app: /PunkBuster/i },
     { name: 'GameGuard', svc: /^(npggsvc|GameGuard)/i },
     { name: 'XIGNCODE3', svc: /^xhunter/i },

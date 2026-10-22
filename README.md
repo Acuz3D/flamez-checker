@@ -12,7 +12,7 @@
 
 - **Security**: memory integrity (HVCI), VBS, Credential Guard, Secure Boot, TPM, Defender, tamper protection, firewall, Smart App Control, SmartScreen, the vulnerable driver blocklist, UAC, BitLocker, test signing, Hyper-V, WSL and more, each marked **Enabled** or **Disabled**
 - **Gaming and Windows**: Game Mode, GPU scheduling, windowed game optimisations, Game Bar recording, mouse acceleration, fast startup, power plan
-- **What's installed and running**: anti-cheats (Easy Anti-Cheat, BattlEye, Vanguard, FACEIT…), game launchers, overlays and recording apps, debug tools
+- **What's installed and running**: anti-cheats (Easy Anti-Cheat, BattlEye, Vanguard, FACEIT, Ubisoft…), game launchers, overlays and recording apps, debug tools
 - **Your PC**: Windows version, BIOS, board, CPU, GPU, RAM, disks, monitors, network
 - **Changes since last check**: anything that got switched on or off since you last opened it is listed at the top
 - **Services** and **Start-up apps**, with search and filters
@@ -29,7 +29,24 @@
 - BIOS version with a link to your board maker's BIOS downloads
 - Sound, network, Bluetooth and storage drivers with their versions
 
-FLAMEZ CHECKER only **reads** your settings. It never changes anything; clicking a setting just opens the right Windows page.
+## Windows
+
+![Windows](docs/windows.png)
+
+- Your edition, version, build and whether Windows is activated
+- **Change edition**: upgrade Home to Pro with a key, or open Activation
+- **Change version**: Windows Update, go back to the previous version (while Windows still keeps it), or join the Insider Program
+- **Install a different Windows**: Windows 11 or 10 straight from Microsoft, and whether this PC is ready for Windows 11
+
+## Anti-cheats
+
+Each anti-cheat with an uninstaller has an **Uninstall** button. It asks first, then opens that anti-cheat's own uninstaller.
+
+FLAMEZ CHECKER only **reads** your settings. It never changes anything by itself; clicking a setting just opens the right Windows page, and uninstalling only happens when you press Uninstall and confirm.
+
+## Updates
+
+FLAMEZ CHECKER updates itself. New versions download in the background from the GitHub releases, and a **Restart to update** button appears when one is ready (it also installs the next time you close the app).
 
 ## Install
 

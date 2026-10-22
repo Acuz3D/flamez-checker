@@ -175,7 +175,9 @@ function matcher(d) {
     let extra = entry.note || '';
     if (found.length && !entry.note) extra = found.map((x) => `${x.n}${driverNames.has(x.n) ? ' driver' : ''}`).join(' · ');
     if (app?.v && !found.length) extra = [app.v, entry.note].filter(Boolean).join(' · ');
-    return { name: entry.name, status, extra };
+    // things that are part of something else (VAC in Steam) go with it, so no button of their own
+    const uninstall = app?.u && !entry.note ? app.n : null;
+    return { name: entry.name, status, extra, uninstall, note: entry.note };
   };
 }
 
@@ -275,7 +277,14 @@ function softwareCard(d) {
   );
 }
 
-function findsCard(title, items, { note = '', cls = '' } = {}) {
+// the Uninstall button, or when Windows has no uninstaller for it, a way to remove what it came with
+function removeBtn(i) {
+  if (i.uninstall) return `<button class="dl" data-uninstall="${esc(i.uninstall)}" title="Run ${esc(i.uninstall)}'s uninstaller">Uninstall</button>`;
+  const why = i.note ? `It's ${i.note}, so it goes when that is uninstalled.` : 'It has no uninstaller of its own. It came with a game, and uninstalling that game removes it.';
+  return `<button class="dl" data-place="apps" title="${esc(why)}">Apps</button>`;
+}
+
+function findsCard(title, items, { note = '', cls = '', removable = false } = {}) {
   const rank = { running: 0, installed: 1 };
   const found = items.filter((i) => i.status !== 'none').sort((a, b) => rank[a.status] - rank[b.status]);
   const missing = items.filter((i) => i.status === 'none');
@@ -288,6 +297,7 @@ function findsCard(title, items, { note = '', cls = '' } = {}) {
               (i) => `<div class="find ${i.status}">
           <span class="f-name">${esc(i.name)}</span><span class="f-extra">${esc(i.extra)}</span>
           <span class="state ${i.status}">${i.status === 'running' ? 'Running' : 'Installed'}</span>
+          ${removable ? removeBtn(i) : ''}
         </div>`,
             )
             .join('')}</div>`
@@ -446,7 +456,7 @@ async function drawOverview() {
     securityCard(groups, changes),
     gamingCard(data, gaming, changes),
     softwareCard(data),
-    findsCard('Anti-cheat', lists.antiCheat, { note: 'Kernel anti-cheats load a driver; "Running" means it is loaded right now.' }),
+    findsCard('Anti-cheat', lists.antiCheat, { removable: true, note: 'Kernel anti-cheats load a driver; "Running" means it is loaded right now. Uninstall opens the anti-cheat\'s own uninstaller; press Refresh when it\'s done.' }),
     findsCard('Launchers', lists.launchers),
     findsCard('Overlays and recording', lists.overlays),
     findsCard('Debug and inspect tools', lists.tools, { note: "Some anti-cheats won't let a game start while one of these is open." }),
@@ -744,6 +754,143 @@ $('#driver-cards').addEventListener('click', (e) => {
   }
 });
 
+// ---------- Windows page: which Windows this is and how to change it ----------
+
+// Windows' own edition ids → the names people know, with how high up each sits
+const EDITIONS = [
+  { name: 'Home', ids: /^Core/, rank: 0, about: 'What most PCs come with.' },
+  { name: 'Pro', ids: /^Professional(N)?$|^ProfessionalEducation/, rank: 1, about: 'Adds BitLocker, Hyper-V, Windows Sandbox and Remote Desktop.' },
+  { name: 'Pro for Workstations', ids: /^ProfessionalWorkstation/, rank: 2, about: 'Pro for heavy workstation hardware.' },
+  { name: 'Education', ids: /^Education/, rank: 2, about: 'Through a school licence.' },
+  { name: 'Enterprise', ids: /^(Enterprise|IoTEnterprise)/, rank: 3, about: 'Through a business licence.' },
+];
+const GO_BACK_DAYS = 10; // how long Windows keeps the version it updated from
+
+function windowsCards(d) {
+  const s = d.system;
+  const sec = d.security;
+  const win11 = /Windows 11/i.test(s.os);
+  const current = EDITIONS.find((e) => e.ids.test(s.edition || '')) || EDITIONS.find((e) => s.os.includes(e.name));
+
+  const licence =
+    s.activated == null ? '<span class="badge">Activation unknown</span>' : s.activated ? `<span class="badge ok">Activated${s.licence ? ` · ${esc(s.licence)}` : ''}</span>` : '<span class="badge hot">Not activated</span>';
+  const yours = card(
+    'Your Windows',
+    `<div class="drv-top">
+      <div><div class="drv-name">${esc(s.os)}</div><div class="r-meta">${esc(s.edition || '')} · ${esc(s.arch)} · installed ${day(s.installed)}</div></div>
+      <div class="drv-installed"><span class="eyebrow">Version</span><b>${esc(s.release || '—')}</b><span class="r-meta">build ${esc(s.build)}</span></div>
+      ${licence}
+    </div>
+    <div class="r-btns left">
+      <button class="dl primary" data-place="update"><i data-icon="refresh"></i>Check for updates</button>
+      <button class="dl" data-place="activation"><i data-icon="external"></i>Activation</button>
+      <button class="dl" data-place="about"><i data-icon="external"></i>About this PC</button>
+    </div>`,
+    { cls: 'wide' },
+  );
+
+  // Windows 11's minimum, from what the check already read
+  const sysVol = (d.volumes || []).find((v) => v.letter === (s.drive || 'C'));
+  const checks = [
+    ['64-bit Windows', /64/.test(s.arch), s.arch],
+    ['UEFI firmware', s.firmware === 'UEFI', s.firmware || 'unknown'],
+    ['Secure Boot', sec.secureBoot === 1, sec.secureBoot === 1 ? 'on' : s.firmware === 'UEFI' ? 'off, can be turned on in the BIOS' : 'needs UEFI'],
+    ['TPM 2.0', !!sec.tpm?.ok, sec.tpm ? sec.tpm.name.replace('Trusted Platform Module', 'TPM') : 'not found, often a BIOS setting (fTPM / PTT)'],
+    ['4 GB RAM', s.ramBytes >= 4 * GiB, `${Math.round(s.ramBytes / GiB)} GB`],
+    ['64 GB drive', sysVol ? sysVol.size >= 64 * GiB : null, sysVol ? `${sysVol.letter}: ${size(sysVol.size)}` : 'unknown'],
+  ];
+  const passed = checks.filter((c) => c[1]).length;
+  const ready = card(
+    'Windows 11 ready?',
+    `<div class="finds">${checks
+      .map(
+        ([name, ok, detail]) => `<div class="find ${ok ? 'running' : ''}">
+        <span class="f-name">${esc(name)}</span><span class="f-extra">${esc(detail)}</span>
+        <span class="state ${ok ? 'running' : ''}">${ok ? 'Yes' : ok === false ? 'No' : '?'}</span>
+      </div>`,
+      )
+      .join('')}</div>
+    <p class="note">The CPU has to be on Microsoft's list too. PC Health Check tells you for sure.</p>
+    <div class="r-btns left">${linkBtn(webSearch('PC Health Check app download Microsoft'), 'PC Health Check')}</div>`,
+    { meta: win11 ? 'already on Windows 11' : `${passed} of ${checks.length}`, metaLit: !win11 && passed === checks.length },
+  );
+
+  const editionRows = EDITIONS.map((e) => {
+    const isCurrent = e === current;
+    const up = current && e.rank > current.rank;
+    // only Home → Pro is a simple key upgrade; the others come with their own licence
+    const how = isCurrent ? 'this PC' : up ? (e.rank === 1 ? 'upgrade with a key, no reinstall' : e.about) : current ? 'needs a clean install' : '';
+    return `<div class="release ${isCurrent ? 'current' : ''}">
+      <b>${esc(e.name)}</b>${isCurrent ? '<span class="tag on">Installed</span>' : ''}
+      <span class="r-meta" title="${esc(e.about)}">${esc(how)}</span>
+      <span class="r-btns">${up && e.rank < 2 ? '<button class="dl" data-place="activation"><i data-icon="external"></i>Upgrade</button>' : ''}</span>
+    </div>`;
+  }).join('');
+  const edition = card(
+    'Change edition',
+    `<div class="releases">${editionRows}</div>
+    <p class="note">Going up (Home → Pro) keeps everything: buy the upgrade in Activation, or type in a key you already have. Going down to a lower edition means reinstalling Windows.</p>
+    <div class="r-btns left">
+      <button class="dl primary" data-place="activation"><i data-icon="external"></i>Activation</button>
+      <button class="dl" data-place="productKey"><i data-icon="external"></i>Enter a product key</button>
+    </div>`,
+    { cls: 'half' },
+  );
+
+  // the version it updated from, if Windows still has it
+  const prevAge = s.previous ? (Date.now() - new Date(s.previous)) / 86400000 : null;
+  const daysLeft = prevAge == null ? 0 : Math.floor(GO_BACK_DAYS - prevAge);
+  const version = card(
+    'Change version',
+    `<div class="releases">
+      <div class="release">
+        <b>Newer</b><span class="r-meta">the latest ${win11 ? 'Windows 11' : 'Windows'} update</span>
+        <span class="r-btns"><button class="dl primary" data-place="update"><i data-icon="refresh"></i>Windows Update</button></span>
+      </div>
+      <div class="release current">
+        <b>${esc(s.release || 'Now')}</b><span class="tag on">Installed</span><span class="r-meta">build ${esc(s.build)}</span>
+      </div>
+      <div class="release">
+        <b>Previous</b><span class="r-meta">${
+          daysLeft > 0 ? `kept for about ${daysLeft} more day${daysLeft === 1 ? '' : 's'}` : s.previous ? 'kept too long ago to go back' : 'not kept on this PC'
+        }</span>
+        <span class="r-btns">${daysLeft > 0 ? '<button class="dl" data-place="recovery"><i data-icon="external"></i>Go back</button>' : ''}</span>
+      </div>
+      <div class="release">
+        <b>Preview</b><span class="r-meta">test builds before everyone else</span>
+        <span class="r-btns"><button class="dl" data-place="insider"><i data-icon="external"></i>Insider Program</button></span>
+      </div>
+    </div>
+    <p class="note">After an update, Windows keeps the old version for ${GO_BACK_DAYS} days so you can go back (Settings → System → Recovery → Go back). After that, only a reinstall goes back.</p>`,
+    { cls: 'half' },
+  );
+
+  const install = card(
+    'Install a different Windows',
+    `<div class="releases">
+      <div class="release ${win11 ? 'current' : ''}">
+        <b>Windows 11</b>${win11 ? '<span class="tag on">Installed</span>' : '<span class="tag">Latest</span>'}
+        <span class="r-meta">${win11 ? 'reinstall or make a USB' : 'upgrade in place, keeps your files and apps'}</span>
+        <span class="r-btns">${linkBtn('https://www.microsoft.com/software-download/windows11', 'Download from Microsoft', 'primary')}</span>
+      </div>
+      <div class="release ${win11 ? '' : 'current'}">
+        <b>Windows 10</b>${win11 ? '' : '<span class="tag on">Installed</span>'}
+        <span class="r-meta">22H2, the last one · no more security updates</span>
+        <span class="r-btns">${linkBtn('https://www.microsoft.com/software-download/windows10', 'Download from Microsoft')}</span>
+      </div>
+    </div>
+    <p class="note">Microsoft's page has the Installation Assistant (upgrades this PC), the Media Creation Tool (makes an install USB) and the ISO. Going from Windows 11 back to 10 is a clean install, so back up your files first. Your licence carries over: the same edition activates on either.</p>`,
+    { cls: 'full' },
+  );
+
+  return `${yours}${ready}${edition}${version}${install}`;
+}
+
+function drawWindows() {
+  $('#windows-cards').innerHTML = windowsCards(data);
+  drawIcons($('#windows-cards'));
+}
+
 // ---------- the report ----------
 
 function report() {
@@ -754,6 +901,7 @@ function report() {
     '',
     'SYSTEM',
     `  Windows     ${s.os} ${s.release} (build ${s.build})`,
+    `  Licence     ${s.activated == null ? 'unknown' : s.activated ? `activated${s.licence ? `, ${s.licence}` : ''}` : 'not activated'}`,
     `  Firmware    ${s.firmware}, BIOS ${s.bios}`,
     `  Board       ${s.board}`,
     `  CPU         ${s.cpu}`,
@@ -828,6 +976,7 @@ async function check() {
     await drawOverview();
     drawServices();
     drawStartup();
+    drawWindows();
     drawDrivers();
     lookUpDrivers();
     $('#loading').hidden = true;
@@ -879,6 +1028,12 @@ document.addEventListener('click', (e) => {
   // download and support links open in the browser
   const l = e.target.closest('[data-link]');
   if (l) flamez.openLink(l.dataset.link).then((ok) => ok && toast('Opening in your browser'));
+  const u = e.target.closest('[data-uninstall]');
+  if (u)
+    flamez.uninstall(u.dataset.uninstall).then((r) => {
+      if (r.ok) toast("Uninstaller opened. Press Refresh when it's done.");
+      else if (r.error) toast(r.error);
+    });
 });
 
 $('#refresh-btn').addEventListener('click', check);
@@ -922,6 +1077,15 @@ flamez.onMaximised((on) => {
   $('#win-max').innerHTML = svg(on ? 'winRestore' : 'winMax');
   $('#win-max').title = on ? 'Restore' : 'Maximise';
 });
+
+// a new version downloads by itself; once it's ready the button restarts into it
+flamez.onUpdate((u) => {
+  if (u.state === 'ready') {
+    $('#update-btn').hidden = false;
+    toast(`Version ${u.version} is ready. Restart to update.`);
+  }
+});
+$('#update-btn').addEventListener('click', () => flamez.installUpdate());
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'F5' || (e.ctrlKey && e.key.toLowerCase() === 'r')) {

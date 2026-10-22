@@ -1,5 +1,6 @@
 ﻿# Reads what is turned on and off on this PC and prints it as JSON for FLAMEZ.
-# Only reads; nothing here changes a setting. Works without admin.
+# Only reads; nothing here changes a setting (uninstalling is done by the app,
+# and only when asked). Works without admin.
 # Run with -Part a (system, security, settings), -Part b (apps, services,
 # storage) or -Part c (drivers); FLAMEZ runs all three at once since each
 # takes a few seconds.
@@ -24,11 +25,20 @@ $gpus = @(Get-CimInstance Win32_VideoController)
 $mem = @(Get-CimInstance Win32_PhysicalMemory)
 $nt = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+# the Windows licence (this id is Windows itself, not Office)
+$lic = Get-CimInstance SoftwareLicensingProduct -Filter "ApplicationID='55c92734-d682-4d71-983e-d6ec3f16059f' AND PartialProductKey IS NOT NULL" | Select-Object -First 1
+# Windows keeps the version it updated from here for a few days, so you can go back
+$old = Get-Item -LiteralPath "$env:SystemDrive\Windows.old" -Force
 
 $system = [ordered]@{
   os        = ($os.Caption -replace '^Microsoft ', '')
+  edition   = $nt.EditionID
   release   = $nt.DisplayVersion
   build     = "$($nt.CurrentBuild).$($nt.UBR)"
+  activated = $(if ($lic) { $lic.LicenseStatus -eq 1 } else { $null })
+  licence   = $(if ($lic) { "$($lic.ProductKeyChannel)" } else { $null })
+  previous  = $(if ($old) { Iso $old.CreationTime } else { $null })
+  drive     = $env:SystemDrive.TrimEnd(':')
   installed = Iso $os.InstallDate
   booted    = Iso $os.LastBootUpTime
   arch      = $os.OSArchitecture
@@ -122,7 +132,7 @@ $uninstallKeys = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
   'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
   'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
 $apps = @(Get-ItemProperty $uninstallKeys | Where-Object DisplayName | ForEach-Object {
-    [ordered]@{ n = "$($_.DisplayName)".Trim(); v = "$($_.DisplayVersion)" }
+    [ordered]@{ n = "$($_.DisplayName)".Trim(); v = "$($_.DisplayVersion)"; u = "$($_.UninstallString)".Trim() }
   })
 # store apps that matter here (they don't show in the normal list)
 foreach ($pkg in 'Microsoft.GamingApp', 'Microsoft.XboxGamingOverlay', 'Microsoft.DirectXRuntime') {
